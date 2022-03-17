@@ -1,10 +1,8 @@
-project       = "vm-test-341412"
+project       = "ncu-gcp-demo-344208"
 name          = "lb-poc"
 backend-port  = "80"
 frontend-port = "80"
 
-instance = "saas-instance-template"
-zone     = "asia-northeast3-a"
-region   = "asia-northeast3"
+
 
 

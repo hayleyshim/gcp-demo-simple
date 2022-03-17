@@ -45,7 +45,7 @@ module "private_subnet" {
   private_ip_google_access = "false"
 }
 
-/*
+
 # creating the private subnet - db
 module "private_subnet2" {
   source = "./modules/subnetworks"
@@ -56,7 +56,8 @@ module "private_subnet2" {
   network = module.network.network_name
   depends_on_resoures = [module.network]
   private_ip_google_access = "false"
-}*/
+}
+
 
 
 
@@ -73,37 +74,25 @@ module "firewall_rule_ssh_all" {
   target_tags = null
 }
 
-/*# create firewall rule to access only the public vm with icmp
-module "firewall_rule_icmp_public" {
-  source = "./modules/firewall"
-
-  firewall_rule_name = "access-vm"
-  network = module.network.network_name
-  protocol_type = "icmp"
-  ports_types = null
-  source_tags = null
-  source_ranges = ["0.0.0.0/0"]
-  target_tags = ["ncu-vm","ncu-analysis-vm" ]
-}*/
-
-/*# firwall rule for private instances
-module "firewall_rule_private_vm" {
-  source = "./modules/firewall"
-
-  firewall_rule_name = "private-vm"
-  network = module.network.network_name
-  protocol_type = "icmp"
-  ports_types = null
-  source_tags = null
-  source_ranges = ["0.0.0.0/0"]
-  target_tags = ["ncu-vm"]
-}*/
 
 # firwall rule for private instances
-module "firewall_rule_private_vm2" {
+module "firewall_rule_access-db" {
   source = "./modules/firewall"
 
-  firewall_rule_name = "private-vm-from-ncu"
+  firewall_rule_name = "to-db"
+  network = module.network.network_name
+  protocol_type = "icmp"
+  ports_types = null
+  source_tags = ["saas-vm","ncu-vm"]
+  source_ranges = null
+  target_tags = ["db"]
+}
+
+# firwall rule for private instances
+module "firewall_rule_access-ncu" {
+  source = "./modules/firewall"
+
+  firewall_rule_name = "from-ncu"
   network = module.network.network_name
   protocol_type = "icmp"
   ports_types = null
@@ -127,14 +116,8 @@ module "public_instance" {
   
 }*/
 
-/*module "bastion-host" {
-  source  = "terraform-google-modules/bastion-host/google"
-  version = "4.1.0"
-  # insert the 4 required variables here
-}*/
 
 
-/*
 # create the vm in public subnet
 module "private_instance" {
   source = "./modules/instance"
@@ -142,63 +125,12 @@ module "private_instance" {
   instance_name = "saas-vm"
   machine_type = "f1-micro"
   vm_zone = "asia-northeast3-b"
-  network_tags = ["saas-vm", "test"]
+  network_tags = ["saas-vm"]
   machine_image = "ubuntu-1804-bionic-v20200317"
   subnetwork = module.private_subnet.sub_network_name
   metadata_Name_value = "private_vm"
 
 }
-*/
-
-
-
-# create the vm in public subnet - 추가(vm)
-module "private_instance2" {
-  source = "./modules/instance"
-
-  instance_name = "ncu-vm"
-  machine_type = "f1-micro"
-  vm_zone = "asia-northeast3-a"
-  network_tags = ["ncu-vm", "test"]
-  machine_image = "ubuntu-1804-bionic-v20200317"
-  //subnetwork = module.private_subnet.sub_network_name
-
-  //network    = module.network.self_link
-  subnetwork = module.private_subnet.self_link
-  metadata_Name_value = "private_vm"
-  
-}
-
-# create the vm in public subnet - 추가(vm)
-module "private_instance3" {
-  source = "./modules/instance"
-
-  instance_name = "ncu-analysis-vm"
-  machine_type = "f1-micro"
-  vm_zone = "asia-northeast3-a"
-  network_tags = ["ncu-analysis-vm", "test"]
-  machine_image = "ubuntu-1804-bionic-v20200317"
-  //subnetwork = module.private_subnet.sub_network_name
-  
-  //network    = module.network.self_link
-  subnetwork = module.private_subnet.self_link
-  metadata_Name_value = "private_vm"
-}
-
-/*
-# create the vm in public subnet - 추가(vm-db)
-module "private_vm_db" {
-  source = "./modules/instance"
-
-  instance_name = "db"
-  machine_type = "f1-micro"
-  vm_zone = "asia-northeast3-c"
-  network_tags = ["db", "test"]
-  machine_image = "ubuntu-1804-bionic-v20200317"
-  subnetwork = module.private_subnet2.sub_network_name
-  metadata_Name_value = "private_vm"
-}*/
-
 
 module "instance-templates" {
   source = "./modules/instance-templates"
@@ -207,14 +139,14 @@ module "instance-templates" {
   instance_description = "Final Project"
   project              = var.project
 
-  tags = ["http-server", "allow-saas-instance"]
+  tags = ["allow-saas-instance"]
 
   network    = module.network.self_link
   subnetwork = module.private_subnet.self_link
  
 
   
-  metadata_startup_script = "scripts/asia-northeast3-saas-instance.sh"
+  metadata_startup_script = "scripts/saas-instance.sh"
 
   labels = {
     environment = terraform.workspace
@@ -233,16 +165,140 @@ module "instance-groups" {
   instance_template         = module.instance-templates.self_link
 
   resource_depends_on = [
-    module.router-nat
+    //module.router-nat
   ]
 }
+
+
+# create the vm in public subnet - 추가(vm)
+module "private_instance2" {
+  source = "./modules/instance"
+
+  instance_name = "ncu-vm"
+  machine_type = "f1-micro"
+  vm_zone = "asia-northeast3-a"
+  network_tags = ["ncu-vm"]
+  machine_image = "ubuntu-1804-bionic-v20200317"
+  //subnetwork = module.private_subnet.sub_network_name
+
+  //network    = module.network.self_link
+  subnetwork = module.private_subnet.self_link
+  metadata_Name_value = "private_vm"
+  
+}
+
+
+module "instance-templates2" {
+  source = "./modules/instance-templates"
+
+  name                 = "ncu-instance-template"
+  instance_description = "Final Project"
+  project              = var.project
+
+  tags = ["allow-ncu-instance"]
+
+  network    = module.network.self_link
+  subnetwork = module.private_subnet.self_link
+ 
+
+  
+  metadata_startup_script = "scripts/ncu-instance.sh"
+
+  labels = {
+    environment = terraform.workspace
+    purpose     = "Final Project"
+  }
+}
+
+
+module "instance-groups2" {
+  source = "./modules/instance-groups"
+
+  name                      = "ncu-instance-group"
+  base_instance_name        = "ncu"
+  region                    = "asia-northeast3"
+  distribution_policy_zones = ["asia-northeast3-a", "asia-northeast3-b"]
+  instance_template         = module.instance-templates2.self_link
+
+  resource_depends_on = [
+   // module.router-nat
+  ]
+}
+
+# create the vm in public subnet - 추가(vm)
+module "private_instance3" {
+  source = "./modules/instance"
+
+  instance_name = "ncu-analysis-vm"
+  machine_type = "f1-micro"
+  vm_zone = "asia-northeast3-a"
+  network_tags = ["ncu-analysis-vm"]
+  machine_image = "windows-cloud/windows-2019"
+  //subnetwork = module.private_subnet.sub_network_name
+  
+  //network    = module.network.self_link
+  subnetwork = module.private_subnet.self_link
+  metadata_Name_value = "private_vm"
+}
+
+
+# create the vm in public subnet - 추가(vm-db)
+module "private_vm_db" {
+  source = "./modules/instance"
+
+  instance_name = "db"
+  machine_type = "f1-micro"
+  vm_zone = "asia-northeast3-c"
+  network_tags = ["db"]
+  machine_image = "ubuntu-1804-bionic-v20200317"
+  subnetwork = module.private_subnet2.sub_network_name
+  metadata_Name_value = "private_vm"
+}
+
+module "instance-templates3" {
+  source = "./modules/instance-templates"
+
+  name                 = "db-instance-template"
+  instance_description = "Final Project"
+  project              = var.project
+
+  tags = ["allow-db-instance"]
+
+  network    = module.network.self_link
+  subnetwork = module.private_subnet.self_link
+ 
+
+  
+  labels = {
+    environment = terraform.workspace
+    purpose     = "Final Project"
+  }
+}
+
+
+module "instance-groups3" {
+  source = "./modules/instance-groups"
+
+  name                      = "db-instance-group"
+  base_instance_name        = "db"
+  region                    = "asia-northeast3"
+  distribution_policy_zones = ["asia-northeast3-a", "asia-northeast3-b"]
+  instance_template         = module.instance-templates3.self_link
+
+  resource_depends_on = [
+    //module.router-nat
+  ]
+}
+
+
+
 
 
 
 module "load-balancer-external" {
   source = "./modules/load-balancer"
 
-  name            = "vm-test-341412"
+  name            = "ncu-lb"
   default_service = module.load-balancer-backend.self_link
 }
 
@@ -265,7 +321,8 @@ module "load-balancer-backend" {
 
   name = var.project
   backends = [
-    module.instance-groups.instance_group
+    module.instance-groups.instance_group,
+    module.instance-groups2.instance_group
   ]
   health_checks = [module.load-balancer-health-check.self_link]
 }
@@ -277,52 +334,3 @@ module "load-balancer-health-check" {
 }
 
 
-module "router" {
-  source = "./modules/router"
-
-  name    = format("router-%s", module.private_subnet.region)
-  region  = module.private_subnet.region
-  network = module.network.self_link
-}
-
-module "router-nat" {
-  source = "./modules/router-nat"
-
-  name   = format("router-nat-%s", module.private_subnet.region)
-  router = module.router.name
-  region = module.router.region
-}
-
-
-module "cloudsql-rr" {
-  source = "./modules/db"
-
-  general = {
-    name       = "db-ha-test9"
-    env        = "dev"
-    region     = "asia-northeast3"
-    db_version = "MYSQL_5_7"
-  }
-
-  master = {
-    zone = "a"
-  }
-
-  replica = {
-    zone = "b"
-  }
-}
-
-
-/*module "vpn" {
-  source = "./modules/vpn"
-
-  classic_vpn_ext_gateway_ip = var.classic_vpn_ext_gateway_ip
-  //billing_account_id = var.billing_account_id
-  //classic_vpn_folder_id = var.classic_vpn_folder_id
-  classic_vpn_shared_secret = var.classic_vpn_shared_secret
-  classic_vpn_router_interface_ip_range = var.classic_vpn_router_interface_ip_range
-  classic_vpn_router_peer_ip_address = var.classic_vpn_router_peer_ip_address
-  //prefix = var.prefix
-
-}*/
